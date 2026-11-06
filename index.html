@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Señales UPC · Captura de dibujos</title>
+<meta name="description" content="Dibuja señales de tránsito y exporta un dataset etiquetado en PNG y NumPy.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="brand"><span class="mark">S</span> Señales UPC</div>
+  <div class="badge"><span class="dot"></span>Todo sucede en tu navegador</div>
+</header>
+
+<main>
+  <section class="intro">
+    <div>
+      <div class="eyebrow">Laboratorio de dibujo · PC03</div>
+      <h1>Trazo a trazo, crea tu dataset de señales.</h1>
+      <p>Dibuja las señales de tránsito indicadas y descarga tus muestras como imágenes PNG etiquetadas o como archivos NumPy listos para Python.</p>
+    </div>
+    <div class="step-label">CONFIGURA → DIBUJA → DESCARGA</div>
+  </section>
+
+  <div class="layout">
+    <!-- 01 · Session setup -->
+    <section class="panel config">
+      <div class="panel-title"><span class="index">01</span><h2>Tu sesión</h2></div>
+      <div class="fields">
+        <div class="field">
+          <label for="total">Cantidad de casos</label>
+          <input id="total" type="number" min="1" max="1000" step="1" value="50">
+          <p class="hint">Entre 1 y 1 000 dibujos.</p>
+        </div>
+        <div class="field">
+          <label for="mode">Selección de señales</label>
+          <select id="mode">
+            <option value="balanced">Equilibrada y mezclada</option>
+            <option value="random">Totalmente aleatoria</option>
+            <option value="manual">Elegir manualmente</option>
+          </select>
+          <p class="hint" id="modeHint">Cantidades similares por señal, en orden aleatorio.</p>
+        </div>
+      </div>
+      <div class="field">
+        <label>Clases del dataset</label>
+        <div class="classes" id="classChips"></div>
+      </div>
+      <button class="primary full" id="start">Comenzar sesión →</button>
+      <div class="rule"></div>
+      <p class="note">Dibuja cada señal a mano, solo con la forma y los símbolos principales.</p>
+      <p class="note">La sesión se mantiene en esta pestaña. Descarga tus archivos antes de cerrarla o recargarla.</p>
+    </section>
+
+    <!-- 02 · Drawing area -->
+    <section class="panel work">
+      <div class="work-head"><h2>Espacio de dibujo</h2><span class="pill" id="phase">Listo para comenzar</span></div>
+      <div class="draw-area">
+        <div class="prompt" id="prompt">Configura tu sesión y comienza.</div>
+        <div class="selector">
+          <label for="classSelect">Clase</label>
+          <select id="classSelect" disabled></select>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="drawing" width="200" height="200" aria-label="Lienzo para dibujar a mano la señal indicada"></canvas>
+        </div>
+        <div class="under-canvas"><span>200 × 200 px</span><span>Ratón · lápiz · dedo</span></div>
+        <div class="brush">
+          <label for="brush">Grosor</label>
+          <input id="brush" type="range" min="3" max="20" value="8">
+          <output id="brushValue" for="brush">8 px</output>
+        </div>
+        <label class="check"><input type="checkbox" id="autoPng" checked> Descargar el PNG etiquetado al guardar</label>
+      </div>
+      <div class="actions">
+        <button id="clear" disabled>Borrar</button>
+        <button class="primary" id="save" disabled>Guardar y continuar →</button>
+      </div>
+      <div id="status" class="status" role="status" aria-live="polite">Cada dibujo se guarda con su etiqueta en el nombre del archivo.</div>
+    </section>
+
+    <!-- 03 · Dataset & export -->
+    <section class="panel results">
+      <div class="panel-title"><span class="index">03</span><h2>Tu dataset</h2></div>
+      <div class="results-inner">
+        <div>
+          <div class="progress-number"><b id="saved">0</b> <span>/ <span id="goal">50</span> casos</span></div>
+          <div class="progress" role="progressbar" aria-label="Casos guardados" aria-valuemin="0" aria-valuemax="50" aria-valuenow="0" id="progress"><div id="bar"></div></div>
+          <div class="counts" id="counts"></div>
+          <div class="rule"></div>
+          <div class="export">
+            <button class="file-button" id="downloadZip" disabled>↓ &nbsp; senales_png.zip <span>PNG por carpeta</span></button>
+            <button class="file-button" id="downloadX" disabled>↓ &nbsp; X.npy <span>Imágenes</span></button>
+            <button class="file-button" id="downloadY" disabled>↓ &nbsp; y.npy <span>Etiquetas</span></button>
+          </div>
+          <p class="hint" id="exportHint">Guarda una muestra para habilitar las descargas.</p>
+        </div>
+        <div class="recent">
+          <div class="eyebrow">Últimos trazos</div>
+          <div class="gallery" id="gallery"><span class="empty">Tus dibujos aparecerán aquí.</span></div>
+          <button class="subtle full" id="undo" disabled>↶ Rehacer última muestra</button>
+          <p class="hint">Vuelve al último caso para dibujarlo nuevamente.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <details>
+    <summary>Cómo usar los archivos en Python</summary>
+    <p><b>ZIP de PNG:</b> contiene una carpeta por clase (<code>PARE/</code>, <code>FLECHA/</code>, …) y un <code>labels.csv</code>. Cada archivo se llama <code>CLASE_sesion_###.png</code>: trazo negro sobre fondo blanco, 200 × 200 px.</p>
+    <p><b>NumPy:</b> cada posición de <code>y</code> corresponde a la misma posición de <code>X</code>.</p>
+<pre>import numpy as np
+import matplotlib.pyplot as plt
+
+X = np.load("X.npy", allow_pickle=False)
+y = np.load("y.npy", allow_pickle=False)
+
+print(X.shape, X.dtype)  # (N, 200, 200), uint8
+print(y.shape, y.dtype)  # (N,), &lt;U9
+plt.imshow(X[0], cmap="gray", vmin=0, vmax=255)
+plt.title(f"Señal: {y[0]}")
+plt.axis("off")
+plt.show()
+
+# Etiquetas numéricas para entrenar
+CLASES = ["PARE", "FLECHA", "PROHIBIDO", "PEATON", "SEMAFORO"]
+y_num = np.array([CLASES.index(c) for c in y])
+X_normalizado = X.astype(np.float32) / 255.0</pre>
+    <p>En <code>X.npy</code> se exporta el canal alfa del lienzo: fondo = 0, trazo = 255. Las guías visuales no forman parte de las imágenes.</p>
+  </details>
+
+  <footer>
+    <p>Sin instalaciones. Sin envío de dibujos a un servidor.</p>
+    <p>Adaptado de <a href="https://github.com/PeterTXS09/letras_upc" target="_blank" rel="noopener noreferrer">letras_upc ↗</a> · HTML / CSS / JS</p>
+  </footer>
+</main>
+
+<dialog id="resetDialog">
+  <h2>¿Comenzar otra sesión?</h2>
+  <p>Se descartarán los dibujos de esta sesión. Descarga tus archivos antes de continuar.</p>
+  <div class="dialog-actions"><button id="cancelReset">Volver</button><button class="primary" id="confirmReset">Nueva sesión</button></div>
+</dialog>
+
+<script src="script.js"></script>
+</body>
+</html>
